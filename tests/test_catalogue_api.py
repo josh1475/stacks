@@ -128,6 +128,7 @@ def test_downloader_key_can_search_and_queue(app, fake_gutenberg, fresh_db, monk
 
     d = c.get(f"/api/catalogue/downloads?keys={key}", headers=DL).get_json()["items"]
     assert d[0]["status"] == "queued" and d[0]["source_label"] == "Project Gutenberg" and d[0]["title"] == "Pride and Prejudice"
+    assert d[0]["progress"] is None
 
     # the existing status page shows it with its source and title (admin only, as before)
     assert c.get("/api/status", headers=DL).status_code == 403

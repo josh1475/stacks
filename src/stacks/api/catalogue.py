@@ -138,7 +138,7 @@ def _public(row):
         meta = json.loads(row.get("catalogue_meta") or "{}")
     except ValueError:
         meta = {}
-    progress = row.get("progress")
+    progress = row.get("progress") if row.get("status") == "downloading" else None   # (a finished row keeps its last)
     if isinstance(progress, str):
         try:
             progress = json.loads(progress)
