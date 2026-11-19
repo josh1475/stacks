@@ -1,0 +1,108 @@
+{
+ "count": 3,
+ "next": null,
+ "previous": null,
+ "results": [
+  {
+   "id": 1342,
+   "title": "Pride and Prejudice",
+   "authors": [
+    {
+     "name": "Austen, Jane",
+     "birth_year": 1775,
+     "death_year": 1817
+    }
+   ],
+   "summaries": [
+    "\"Pride and Prejudice\" by Jane Austen is a novel published in 1813. (This is an automatically generated summary.)"
+   ],
+   "editors": [],
+   "translators": [],
+   "subjects": [
+    "Courtship -- Fiction",
+    "Domestic fiction",
+    "England -- Fiction"
+   ],
+   "bookshelves": [
+    "Best Books Ever Listings",
+    "Harvard Classics"
+   ],
+   "languages": [
+    "en"
+   ],
+   "copyright": false,
+   "media_type": "Text",
+   "formats": {
+    "text/html": "https://www.gutenberg.org/ebooks/1342.html.images",
+    "application/epub+zip": "https://www.gutenberg.org/ebooks/1342.epub3.images",
+    "application/x-mobipocket-ebook": "https://www.gutenberg.org/ebooks/1342.kf8.images",
+    "application/rdf+xml": "https://www.gutenberg.org/ebooks/1342.rdf",
+    "image/jpeg": "https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg",
+    "application/octet-stream": "https://www.gutenberg.org/cache/epub/1342/pg1342-h.zip",
+    "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/1342.txt.utf-8"
+   },
+   "download_count": 208430
+  },
+  {
+   "id": 42671,
+   "title": "Pride and Prejudice",
+   "authors": [
+    {
+     "name": "Austen, Jane",
+     "birth_year": 1775,
+     "death_year": 1817
+    }
+   ],
+   "summaries": [
+    "\"Pride and Prejudice\" by Jane Austen is a novel published in 1813. (This is an automatically generated summary.)"
+   ],
+   "editors": [],
+   "translators": [],
+   "subjects": [
+    "Courtship -- Fiction",
+    "Domestic fiction",
+    "England -- Fiction"
+   ],
+   "bookshelves": [
+    "Best Books Ever Listings",
+    "Harvard Classics"
+   ],
+   "languages": [
+    "en"
+   ],
+   "copyright": false,
+   "media_type": "Text",
+   "formats": {
+    "text/html": "https://www.gutenberg.org/ebooks/42671.html.images",
+    "application/epub+zip": "https://www.gutenberg.org/ebooks/42671.epub3.images",
+    "application/x-mobipocket-ebook": "https://www.gutenberg.org/ebooks/42671.kf8.images",
+    "application/rdf+xml": "https://www.gutenberg.org/ebooks/42671.rdf",
+    "image/jpeg": "https://www.gutenberg.org/cache/epub/42671/pg42671.cover.medium.jpg",
+    "application/octet-stream": "https://www.gutenberg.org/cache/epub/42671/pg42671-h.zip",
+    "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/42671.txt.utf-8"
+   },
+   "download_count": 12000
+  },
+  {
+   "id": 99999,
+   "title": "Pride and Prejudice: a modern retelling",
+   "authors": [
+    {
+     "name": "Someone, Else",
+     "birth_year": 1950,
+     "death_year": null
+    }
+   ],
+   "summaries": [],
+   "languages": [
+    "en"
+   ],
+   "copyright": true,
+   "media_type": "Text",
+   "formats": {
+    "application/epub+zip": "https://www.gutenberg.org/ebooks/99999.epub3.images"
+   },
+   "download_count": 5
+  }
+ ]
+}

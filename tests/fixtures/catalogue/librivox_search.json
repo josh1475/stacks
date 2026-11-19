@@ -1,0 +1,61 @@
+{
+ "books": [
+  {
+   "id": "253",
+   "title": "Pride and Prejudice",
+   "description": "<em>Pride and Prejudice</em> is the most famous of Jane Austen\u2019s novels, and its opening is one of the most famous lines in English literature - \u201cIt is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\u201d Its manuscript was first written between 1796 and 1797, and was initially called <em>First Impressions</em>, but was never published under that title. Following revisions it was published on 28 January 1813 by the same Mr. Egerton of the Military Library, Whitehall, who had brought out <em>Sense and Sensibility</em>. Like both its predecessor and <em>Northanger Abbey</em>, it was written at Steventon Rectory.<br />(Summary from Wikipedia)",
+   "language": "English",
+   "copyright_year": "1813",
+   "num_sections": "37",
+   "url_librivox": "https://librivox.org/pride-and-prejudice-by-jane-austen/",
+   "totaltimesecs": 47204,
+   "authors": [
+    {
+     "id": "155",
+     "first_name": "Jane",
+     "last_name": "Austen",
+     "dob": "1775",
+     "dod": "1817"
+    }
+   ]
+  },
+  {
+   "id": "254",
+   "title": "Pride and Prejudice (version 2)",
+   "description": "Jane Austen\u2019s classic novel chronicles the events in the lives of the Bennet family.  Take a family with five unmarried daughters and a lack of wealth, throw in a new wealthy neighbor or two, plus a whole regiment of soldiers in town, and add a heaping spoonful of pride and a pinch of prejudice.  Mix it all together and you get a story full of tears and laughter, embarrassment and pride, and, of course, love.  (Summary by Annie Coleman)",
+   "language": "English",
+   "copyright_year": "1813",
+   "num_sections": "35",
+   "url_librivox": "https://librivox.org/pride-and-prejudice-by-jane-austen-solo-project/",
+   "totaltimesecs": 48301,
+   "authors": [
+    {
+     "id": "155",
+     "first_name": "Jane",
+     "last_name": "Austen",
+     "dob": "1775",
+     "dod": "1817"
+    }
+   ]
+  },
+  {
+   "id": "969",
+   "title": "Pride and Prejudice (version 5)",
+   "description": "Pride and Prejudice, first published on 28 January 1813, is the most famous of Jane Austen's novels. It is one of the first romantic comedies in the history of the novel and its opening is one of the most famous lines in English literature \u2014\"It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\" [From Wikipedia]<br><br>Co-BC - Micah Sheppard<br>Cataloging - David Lawrence",
+   "language": "English",
+   "copyright_year": "1813",
+   "num_sections": "57",
+   "url_librivox": "https://librivox.org/pride-and-prejudice-v-4-by-jane-austen/",
+   "totaltimesecs": 52012,
+   "authors": [
+    {
+     "id": "155",
+     "first_name": "Jane",
+     "last_name": "Austen",
+     "dob": "1775",
+     "dod": "1817"
+    }
+   ]
+  }
+ ]
+}
