@@ -150,7 +150,7 @@
             const parts = path.replace(/^\/ebooks\//, '').replace(/\/+$/, '').split('/');
             if (!path.startsWith('/ebooks/') || parts.length < 2 || parts.length > 5) return null;
             if (parts.includes('downloads') || parts.includes('text')) return null;
-            if (!parts.every((p) => /^[a-z0-9-]{1,120}$/.test(p))) return null;
+            if (!parts.every((p) => /^[a-z0-9_-]{1,120}$/.test(p))) return null;
             return { source: 'standardebooks', id: parts.join('/') };
         }
         if (host === 'librivox.org') {

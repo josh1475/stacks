@@ -26,7 +26,7 @@ FEED = "https://standardebooks.org/feeds/atom/new-releases"
 FEED_TTL = 3600
 ATOM = "{http://www.w3.org/2005/Atom}"
 MEDIA = "{http://search.yahoo.com/mrss/}"
-ID_RE = re.compile(r"[a-z0-9-]{1,120}(?:/[a-z0-9-]{1,120}){1,4}")
+ID_RE = re.compile(r"[a-z0-9_-]{1,120}(?:/[a-z0-9_-]{1,120}){1,4}")   # (translators: "louise-maude_aylmer-maude")
 SEEN_MAX = 5000
 
 

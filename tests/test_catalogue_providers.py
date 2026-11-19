@@ -89,6 +89,11 @@ def test_standardebooks_ids(bad):
     assert not StandardEbooks(None).valid_id(bad)
 
 
+@pytest.mark.parametrize("good", ["jane-austen/pride-and-prejudice", "leo-tolstoy/war-and-peace/louise-maude_aylmer-maude"])
+def test_standardebooks_good_ids(good):
+    assert StandardEbooks(None).valid_id(good)
+
+
 # ---- LibriVox ---------------------------------------------------------------------------------------------------
 def test_librivox_search(make_http):
     p = LibriVox(make_http({lv_url(title="^pride and prejudice", limit=20, fields=FIELDS): FakeResponse(200, fixture("librivox_search.json"))}))
