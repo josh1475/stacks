@@ -109,4 +109,8 @@ def api_status():
         status['workers'] = []
         status['busy_mirrors'] = []
 
+    # Catalogue-only servers (CATALOGUE_ONLY): the page hides the md5 box
+    from stacks.catalogue import catalogue_only
+    status['catalogue_only'] = catalogue_only(current_app.stacks_config)
+
     return jsonify(status)

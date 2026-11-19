@@ -74,6 +74,12 @@ def api_queue_add():
     md5 = data.get('md5')
     subfolder = data.get('subfolder')
 
+    # CATALOGUE_ONLY: this server only downloads from the public-domain catalogues (/api/catalogue/queue)
+    from stacks.catalogue import catalogue_only
+    if catalogue_only(current_app.stacks_config):
+        return jsonify({'success': False,
+                        'error': 'this server only downloads from public-domain catalogues'}), 403
+
     if not md5:
         return jsonify({'success': False, 'error': 'MD5 required'}), 400
 
