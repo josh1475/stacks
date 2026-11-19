@@ -47,12 +47,24 @@
       </nav>
 
       <div id="downloads-tab" class="tab-content active">
-        <div class="add-item">
+        <div class="add-item" id="md5-add">
           <div class="card input-row">
             <input type="text" id="manual-add" placeholder="Enter an Anna's Archive MD5 or URL..." maxlength="256" />
             <button data-icon="file-add-line" class="btn btn-success"></button>
           </div>
         </div>
+
+        <!-- Public-domain catalogues -->
+        <section class="card catalogue-card">
+          <div class="card-header">
+            <h2>Public-domain catalogues</h2>
+          </div>
+          <div class="input-row">
+            <input type="text" id="catalogue-q" placeholder="Search Project Gutenberg, Standard Ebooks and LibriVox..." maxlength="100" />
+            <button data-icon="book-2-line" class="btn btn-primary" id="catalogue-search-btn" title="Search"></button>
+          </div>
+          <div id="catalogue-results" class="list"></div>
+        </section>
 
         <!-- Current Download -->
         <div id="current-download">
@@ -122,6 +134,7 @@
               <li>Downloads</li>
               <li>FlareSolverr</li>
               <li>Proxy</li>
+              <li>Catalogues</li>
               <li>Queue</li>
               <li>Logging</li>
             </ul>
@@ -305,6 +318,41 @@
                 </div>
               </div>
             </div>
+            <!-- Public-domain catalogues -->
+            <div class="settings-content" data-setting="catalogues">
+              <div class="settings-section">
+                <h3>Public-domain catalogues</h3>
+                <div class="settings-group">
+                  <div class="comment" id="catalogue-mode-note"></div>
+                  <div class="title-switch">
+                    <label class="switch">
+                      <input type="checkbox" id="setting-catalogue-gutenberg" />
+                      <span class="slider"></span>
+                      <span class="label"></span>
+                    </label>
+                    Project Gutenberg
+                  </div>
+                  <div class="title-switch">
+                    <label class="switch">
+                      <input type="checkbox" id="setting-catalogue-standardebooks" />
+                      <span class="slider"></span>
+                      <span class="label"></span>
+                    </label>
+                    Standard Ebooks (its public New Releases feed)
+                  </div>
+                  <div class="title-switch">
+                    <label class="switch">
+                      <input type="checkbox" id="setting-catalogue-librivox" />
+                      <span class="slider"></span>
+                      <span class="label"></span>
+                    </label>
+                    LibriVox (audiobooks)
+                  </div>
+                  <label for="setting-catalogue-max-size">Largest item (MB)</label>
+                  <input type="number" id="setting-catalogue-max-size" min="10" max="65536" value="4096" />
+                </div>
+              </div>
+            </div>
             <!-- Queue -->
             <div class="settings-content" data-setting="queue">
               <div class="settings-section">
@@ -342,7 +390,7 @@
       </div>
 
       <footer>
-        <p><a href="./tamper/stacks_extension.user.js" target="_blank" data-icon="tampermonkey">Install Tampermonkey Script</a> • <a href="https://github.com/zelestcarlyone/stacks-docker" target="_blank" data-icon="github">Visit GitHub</a></p>
+        <p><a href="./tamper/stacks_extension.user.js" target="_blank" data-icon="tampermonkey">Install Tampermonkey Script</a> • <a href="./tamper/stacks_catalogue.user.js" target="_blank" data-icon="tampermonkey">Catalogue Script</a> • <a href="https://github.com/zelestcarlyone/stacks-docker" target="_blank" data-icon="github">Visit GitHub</a></p>
       </footer>
     </div>
 
@@ -391,6 +439,19 @@
           <div class="item-error"></div>
         </div>
         <button class="btn btn-secondary retry-btn" data-icon="file-add-line" onclick=""></button>
+      </div>
+    </template>
+
+    <template id="catalogue-item-template">
+      <div class="list-item">
+        <div class="item-info">
+          <div class="item-title">
+            <span class="item-title-text"></span>
+            <span class="item-filetype"></span>
+          </div>
+          <div class="item-md5 item-authors"></div>
+          <div class="catalogue-sources"></div>
+        </div>
       </div>
     </template>
 
