@@ -126,6 +126,10 @@ def init_database():
         for col_def in [
             "ALTER TABLE downloads ADD COLUMN command TEXT",
             "ALTER TABLE downloads ADD COLUMN progress TEXT",
+            # Public-domain catalogue items (stacks.catalogue): NULL for Anna's Archive downloads
+            "ALTER TABLE downloads ADD COLUMN catalogue_source TEXT",   # gutenberg, standardebooks, librivox
+            "ALTER TABLE downloads ADD COLUMN catalogue_id TEXT",       # the item's id in that catalogue
+            "ALTER TABLE downloads ADD COLUMN catalogue_meta TEXT",     # JSON: title, authors, files to fetch, ...
         ]:
             try:
                 conn.execute(col_def)
@@ -133,6 +137,9 @@ def init_database():
             except Exception:
                 pass  # Column already exists
 
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_downloads_catalogue ON downloads(catalogue_source, catalogue_id)"
+        )
         conn.commit()
         logger.info(f"Database initialized at {DATABASE_PATH}")
     except Exception as e:
