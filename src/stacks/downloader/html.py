@@ -128,9 +128,19 @@ def _get_download_links_single_domain(d, md5, domain):
 
     try:
         response = d.session.get(url, timeout=30)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # Some Anna's Archive domains sit behind Cloudflare, which answers a plain request with 403/503 while
+        # letting a real browser through; the solver gets the page and leaves its cookies in the session.
+        # (Found 2026-11-21: every AA domain 403'd the scraper before FlareSolverr was ever asked.)
+        if response.status_code in (403, 503) and getattr(d, 'flaresolverr_url', None):
+            d.logger.warning(f"{domain} answered {response.status_code}; solving with FlareSolverr")
+            solved, _, solved_html = d.solve_with_flaresolverr(url)
+            if not (solved and solved_html):
+                response.raise_for_status()          # nothing better to do: rotate to the next domain
+            else:
+                soup = BeautifulSoup(solved_html, 'html.parser')
+        else:
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
 
         # Helper function to extract filename from Filepath metadata
         def extract_from_filepath():
