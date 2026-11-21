@@ -43,3 +43,13 @@
    - Build a fresh image
    - Start the service
    - Attach to logs
+
+## Running the tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The tests run against a throwaway config and queue database, and never touch the network: the catalogue tests answer
+from recorded responses in `tests/fixtures/catalogue/`.

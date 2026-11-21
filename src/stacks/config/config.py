@@ -1,11 +1,44 @@
+import os
 import threading
 import logging
 import yaml
 import copy
-from stacks.constants import CONFIG_FILE, CONFIG_SCHEMA_FILE
+from stacks.constants import CONFIG_FILE, CONFIG_SCHEMA_FILE, RE_SECRET_KEY
 from stacks.config.validate import _validate, ensure_login_credentials
 
 logger = logging.getLogger('config')
+
+# Settings the environment can set over config.yaml (for containers whose secrets come from an .env file).
+# They are read on every get(), never written to config.yaml, and never shown by /api/config.
+ENV_OVERRIDES = {
+    ("catalogue", "only"): ("CATALOGUE_ONLY", "bool"),
+    ("api", "key"): ("ADMIN_API_KEY", "secret"),
+    ("api", "downloader_key"): ("DOWNLOADER_API_KEY", "secret"),
+}
+
+
+def env_override(keys):
+    """(True, value) when the environment sets the setting at KEYS, else (False, None)."""
+    spec = ENV_OVERRIDES.get(tuple(keys))
+    if not spec:
+        return False, None
+    name, kind = spec
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return False, None
+    raw = raw.strip()
+    if kind == "bool":
+        if raw.lower() in ("1", "true", "yes", "on"):
+            return True, True
+        if raw.lower() in ("0", "false", "no", "off"):
+            return True, False
+        logger.warning(f"{name} should be true or false; ignored")
+        return False, None
+    if RE_SECRET_KEY.fullmatch(raw):
+        return True, raw
+    logger.warning(f"{name} isn't a valid key (32 letters, digits, - or _); ignored")
+    return False, None
+
 
 class Config:
     """Configuration loader with live update support"""
@@ -56,7 +89,10 @@ class Config:
         return _validate(data, schema)
     
     def get(self, *keys, default=None):
-        """Get nested config value"""
+        """Get nested config value (an environment override wins: ENV_OVERRIDES)"""
+        found, value = env_override(keys)
+        if found:
+            return value
         with self.lock:
             value = self.data
             for key in keys:

@@ -205,6 +205,9 @@ function updateStatus() {
         pauseBtn.dataset.icon = "pause-circle-line";
       }
 
+      // Catalogue-only servers have no md5 box
+      document.getElementById("md5-add").style.display = data.catalogue_only ? "none" : "";
+
       // Update queue
       document.getElementById("queue-count").textContent = data.queue_size;
       updateQueueList(data.queue);
@@ -415,6 +418,85 @@ function addDownload() {
 }
 
 // ============================================================================
+// API FUNCTIONS - PUBLIC-DOMAIN CATALOGUES
+// ============================================================================
+
+const CATALOGUE_LABELS = { gutenberg: "Project Gutenberg", standardebooks: "Standard Ebooks", librivox: "LibriVox" };
+
+function catalogueLabel(source) {
+  return CATALOGUE_LABELS[source] || source;
+}
+
+function parseCatalogueMeta(raw) {
+  try {
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function searchCatalogues() {
+  const q = document.getElementById("catalogue-q").value.trim();
+  const list = document.getElementById("catalogue-results");
+  if (q.length < 2) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = '<div class="empty-state"><div>Searching...</div></div>';
+  apiFetch("/api/catalogue/search?q=" + encodeURIComponent(q))
+    .then((r) => r.json())
+    .then((data) => {
+      list.innerHTML = "";
+      const errors = Object.entries(data.errors || {});
+      errors.forEach(([source, message]) => {
+        toasts.show({ title: catalogueLabel(source), message: message, type: "error" });
+      });
+      if (!data.results || data.results.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div>Nothing found</div></div>';
+        return;
+      }
+      const template = document.getElementById("catalogue-item-template");
+      data.results.forEach((book) => {
+        const clone = template.content.cloneNode(true);
+        clone.querySelector(".item-title-text").textContent = book.title;
+        clone.querySelector(".item-authors").textContent = (book.authors || []).join(", ") + (book.year ? ` (${book.year})` : "");
+        const sources = clone.querySelector(".catalogue-sources");
+        book.sources.forEach((s) => {
+          const btn = document.createElement("button");
+          btn.className = "btn btn-secondary btn--spaced";
+          btn.dataset.icon = "file-download-line";
+          btn.textContent = ` ${s.source_label} · ${(s.formats || []).join(", ").toUpperCase()}`;
+          btn.title = s.kind === "audio" ? "Queue this audiobook" : "Queue this ebook";
+          btn.onclick = () => queueCatalogue(s.source, s.id, book.title);
+          sources.appendChild(btn);
+        });
+        list.appendChild(clone);
+      });
+    })
+    .catch((err) => {
+      list.innerHTML = "";
+      toasts.show({ title: "Catalogues", message: "Error: " + err.message, type: "error" });
+    });
+}
+
+function queueCatalogue(source, id, title) {
+  apiFetch("/api/catalogue/queue", {
+    method: "POST",
+    body: JSON.stringify({ source: source, id: id }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      toasts.show({
+        title: catalogueLabel(source),
+        message: data.success ? `Added ${title} to queue` : data.message || data.error || "Failed to add to queue",
+        type: data.success ? "success" : "error",
+      });
+      updateStatus();
+    })
+    .catch((err) => toasts.show({ title: catalogueLabel(source), message: "Error: " + err.message, type: "error" }));
+}
+
+// ============================================================================
 // API FUNCTIONS - HISTORY
 // ============================================================================
 
@@ -513,6 +595,15 @@ function loadSettings() {
       document.getElementById("setting-proxy-username").value = config.proxy?.username || "";
       document.getElementById("setting-proxy-password").value = config.proxy?.password || "";
 
+      // Public-domain catalogues
+      ["gutenberg", "standardebooks", "librivox"].forEach((s) => {
+        document.getElementById(`setting-catalogue-${s}`).checked = config.catalogue?.[s] !== false;
+      });
+      document.getElementById("setting-catalogue-max-size").value = config.catalogue?.max_size_mb || 4096;
+      document.getElementById("catalogue-mode-note").textContent = config.catalogue?.only
+        ? "This server only downloads from public-domain catalogues" + (config.catalogue?.only_from_env ? " (CATALOGUE_ONLY is set)." : ".")
+        : "Catalogue items download alongside everything else.";
+
       // Queue
       document.getElementById("setting-max-history").value = config.queue?.max_history || 100;
 
@@ -552,6 +643,12 @@ function saveSettings() {
       url: document.getElementById("setting-proxy-url").value || null,
       username: document.getElementById("setting-proxy-username").value || null,
       password: document.getElementById("setting-proxy-password").value || null,
+    },
+    catalogue: {
+      gutenberg: document.getElementById("setting-catalogue-gutenberg").checked,
+      standardebooks: document.getElementById("setting-catalogue-standardebooks").checked,
+      librivox: document.getElementById("setting-catalogue-librivox").checked,
+      max_size_mb: parseInt(document.getElementById("setting-catalogue-max-size").value) || 4096,
     },
     queue: {
       max_history: parseInt(document.getElementById("setting-max-history").value),
@@ -875,6 +972,12 @@ function updateQueueList(queue) {
       subfolderTag.style.display = "inline-block";
     }
 
+    // Catalogue items: where they come from
+    if (item.catalogue_source) {
+      subfolderTag.textContent = catalogueLabel(item.catalogue_source);
+      subfolderTag.style.display = "inline-block";
+    }
+
     const removeBtn = clone.querySelector(".btn-danger");
     removeBtn.onclick = () => removeFromQueue(item.md5);
 
@@ -911,7 +1014,13 @@ function updateHistoryList(history) {
     }
     clone.querySelector(".item-link").href = "https://annas-archive.gl/md5/" + item.md5;
     // Title - filename or MD5
-    const displayName = item.filename || item.md5;
+    let displayName = item.filename || item.md5;
+    if (item.catalogue_source) {
+      // A public-domain catalogue item: its title, its source, and a link to its page there
+      const meta = parseCatalogueMeta(item.catalogue_meta);
+      displayName = item.title || displayName;
+      clone.querySelector(".item-link").href = meta.link || "#";
+    }
     clone.querySelector(".item-title-text").textContent = displayName;
 
     // Method icon (fast vs mirror)
@@ -931,6 +1040,10 @@ function updateHistoryList(history) {
     const subfolderTag = clone.querySelector(".item-subfolder");
     if (item.subfolder) {
       subfolderTag.textContent = item.subfolder.split("/").pop();
+      subfolderTag.style.display = "inline-block";
+    }
+    if (item.catalogue_source) {
+      subfolderTag.textContent = catalogueLabel(item.catalogue_source);
       subfolderTag.style.display = "inline-block";
     }
 
@@ -1026,6 +1139,14 @@ document.querySelector(".add-item .btn-success").addEventListener("click", addDo
 document.getElementById("manual-add").addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
     addDownload();
+  }
+});
+
+// Catalogue search on the button or Enter
+document.getElementById("catalogue-search-btn").addEventListener("click", searchCatalogues);
+document.getElementById("catalogue-q").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    searchCatalogues();
   }
 });
 

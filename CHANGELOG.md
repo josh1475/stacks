@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased] (josh1475 fork)
+
+### Features
+- Public-domain catalogues: Project Gutenberg, Standard Ebooks and LibriVox. Search them from the Downloads tab, queue
+  by `(source, id)` (`/api/catalogue/*`), and they download through the same queue, history and status.
+- Catalogue mode: `CATALOGUE_ONLY=true` refuses md5 downloads and never runs the Anna's Archive downloader. Off by default.
+- `ADMIN_API_KEY` and `DOWNLOADER_API_KEY` environment variables (keys kept out of `config.yaml`).
+- A catalogue userscript adds Stacks' Download button to Gutenberg, Standard Ebooks and LibriVox book pages.
+- Tests (`pytest`) for the catalogues, catalogue mode and the queue migration.
+
 ## [1.3.0]
 
 ### Features

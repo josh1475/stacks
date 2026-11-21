@@ -189,6 +189,11 @@ def _test_key_single_domain(test_key, domain):
 @api_bp.route('/api/config/test_key', methods=['POST'])
 @require_auth_with_permissions(allow_downloader=False)
 def api_config_test_key():
+    # (CATALOGUE_ONLY: nothing is ever sent to Anna's Archive, not even a key test)
+    from stacks.catalogue import catalogue_only
+    if catalogue_only(current_app.stacks_config):
+        return jsonify({'success': False,
+                        'error': 'this server only downloads from public-domain catalogues'}), 403
     """Test fast download key and update cached info"""
     data = request.json
     test_key = data.get('key')
@@ -367,6 +372,11 @@ def api_config_get():
         config_data['api']['key'] = '***MASKED***'
     if 'login' in config_data and 'password' in config_data['login']:
         config_data['login']['password'] = '***MASKED***'
+    # Catalogue mode as it is in effect (CATALOGUE_ONLY in the environment wins over the file)
+    from stacks.config.config import env_override
+    locked, _ = env_override(('catalogue', 'only'))
+    config_data.setdefault('catalogue', {})['only'] = bool(config.get('catalogue', 'only', default=False))
+    config_data['catalogue']['only_from_env'] = locked
     return jsonify(config_data)
 
 @api_bp.route('/api/subdirs', methods=['GET'])

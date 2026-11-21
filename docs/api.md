@@ -72,6 +72,17 @@ Stacks supports three authentication methods with different permission levels:
 | `/api/config/test_key`          | POST   | ✔️       | ✔️         | ❌      | Test Anna's Archive fast download key validity |
 | `/api/config/test_flaresolverr` | POST   | ✔️       | ✔️         | ❌      | Test FlareSolverr connection                   |
 
+### Public-domain catalogues
+
+| Endpoint                   | Method | Session | Admin Key | DL Key | Description                                                   |
+| -------------------------- | ------ | ------- | --------- | ------ | ------------------------------------------------------------- |
+| `/api/catalogue/search`    | GET    | ✔️       | ✔️         | ✔️      | Search Gutenberg, Standard Ebooks and LibriVox (`q`, `source`) |
+| `/api/catalogue/item`      | GET    | ✔️       | ✔️         | ✔️      | One catalogue item (`source`, `id`)                           |
+| `/api/catalogue/queue`     | POST   | ✔️       | ✔️         | ✔️      | Queue a catalogue item: `{source, id, subfolder?}`            |
+| `/api/catalogue/downloads` | GET    | ✔️       | ✔️         | ✔️      | Catalogue items in the queue and history (`keys`)             |
+
+With `CATALOGUE_ONLY=true`, `/api/queue/add` and `/api/config/test_key` answer 403. Details: [catalogue.md](./catalogue.md).
+
 ## Example Usage
 
 ### Test an API Key

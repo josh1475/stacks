@@ -17,7 +17,7 @@ from stacks.utils.domainupdater import update_wiki_domains
 logger = logging.getLogger(__name__)
 
 
-def coordinator_process(stop_event: Event) -> None:
+def coordinator_process(stop_event: Event, catalogue_only: bool = False) -> None:
     """
     Coordinator process entry point.
 
@@ -74,7 +74,8 @@ def coordinator_process(stop_event: Event) -> None:
             queue_ops.heartbeat(worker_id, 'coordinator')
 
             # Refresh Anna's Archive domains from Wikipedia every 6 hours
-            if time.time() - last_domain_update >= domain_update_interval:
+            # (not in catalogue-only mode, which never uses those domains)
+            if not catalogue_only and time.time() - last_domain_update >= domain_update_interval:
                 update_wiki_domains()
                 last_domain_update = time.time()
 

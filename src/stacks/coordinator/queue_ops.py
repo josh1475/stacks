@@ -93,6 +93,104 @@ class QueueOperations:
         finally:
             conn.close()
 
+    def add_catalogue_download(
+        self,
+        key: str,
+        source: str,
+        catalogue_id: str,
+        title: str,
+        meta: dict,
+        mirror: dict,
+        subfolder: str = None,
+        added_by: str = 'catalogue'
+    ) -> tuple[bool, str]:
+        """
+        Add a public-domain catalogue item (stacks.catalogue) to the queue.
+
+        The queue is keyed on md5, so KEY is md5("source:id"). Catalogue items skip the scraper: they go in as
+        'queued' with one "mirror" (the catalogue's download host), which the download worker hands to the
+        catalogue downloader instead of Anna's Archive's.
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        conn = get_connection()
+        try:
+            existing = conn.execute(
+                "SELECT status, catalogue_source FROM downloads WHERE md5 = ?", (key,)
+            ).fetchone()
+            if existing:
+                if not existing['catalogue_source']:
+                    return False, "That key belongs to another download"
+                status = existing['status']
+                if status in ('pending_scrape', 'scraping', 'queued', 'downloading'):
+                    return False, f"Already in queue (status: {status})"
+                if status == 'completed':
+                    return False, "Already downloaded successfully"
+
+            conn.execute("""
+                INSERT INTO downloads (md5, source, subfolder, title, status, added_at, mirrors,
+                                       catalogue_source, catalogue_id, catalogue_meta, filename)
+                VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(md5) DO UPDATE SET
+                    source = excluded.source,
+                    subfolder = excluded.subfolder,
+                    title = excluded.title,
+                    status = 'queued',
+                    added_at = excluded.added_at,
+                    mirrors = excluded.mirrors,
+                    catalogue_meta = excluded.catalogue_meta,
+                    filename = excluded.filename,
+                    completed_at = NULL,
+                    error = NULL,
+                    success = NULL,
+                    filepath = NULL,
+                    progress = NULL,
+                    command = NULL,
+                    assigned_worker = NULL,
+                    assigned_mirror = NULL
+            """, (key, added_by, subfolder, title, datetime.now().isoformat(), json.dumps([mirror]),
+                  source, catalogue_id, json.dumps(meta), title))
+            conn.commit()
+            logger.info(f"Added catalogue item to queue: {source}:{catalogue_id} ({title})")
+            return True, "Added to queue"
+        except Exception as e:
+            logger.error(f"Failed to add catalogue download: {e}")
+            conn.rollback()
+            return False, str(e)
+        finally:
+            conn.close()
+
+    def get_catalogue_downloads(self, keys: list = None, limit: int = 200) -> list[dict]:
+        """
+        Catalogue items in the queue and history (newest first), optionally only KEYS.
+        For clients holding the Downloader key, who can't read /api/status.
+
+        Manual md5 downloads ride along (Josh, 2026-11-21: the hub hands Stacks
+        a hash through /api/queue/add and otherwise has no window on the queue —
+        without these rows a finished book never reached the library).
+        """
+        conn = get_connection()
+        try:
+            if keys:
+                keys = list(keys)[:500]
+                marks = ",".join("?" * len(keys))
+                cursor = conn.execute(f"""
+                    SELECT * FROM downloads
+                    WHERE (catalogue_source IS NOT NULL OR source = 'manual') AND md5 IN ({marks})
+                    ORDER BY added_at DESC
+                """, keys)
+            else:
+                cursor = conn.execute("""
+                    SELECT * FROM downloads
+                    WHERE catalogue_source IS NOT NULL OR source = 'manual'
+                    ORDER BY COALESCE(completed_at, added_at) DESC
+                    LIMIT ?
+                """, (limit,))
+            return rows_to_list(cursor.fetchall())
+        finally:
+            conn.close()
+
     def remove_download(self, md5: str) -> bool:
         """
         Remove a download from the queue.
@@ -355,7 +453,7 @@ class QueueOperations:
     # Job dispatch - Download workers
     # -------------------------------------------------------------------------
 
-    def claim_download_job(self, worker_id: str) -> Optional[dict]:
+    def claim_download_job(self, worker_id: str, catalogue_only: bool = False) -> Optional[dict]:
         """
         Find and claim a download job with an available mirror.
 
@@ -377,11 +475,13 @@ class QueueOperations:
         conn = get_connection()
         try:
             # Get all queued downloads ordered by added_at
+            # (CATALOGUE_ONLY: only public-domain catalogue items are ever claimed)
             cursor = conn.execute("""
                 SELECT * FROM downloads
                 WHERE status = 'queued'
+                  AND (? = 0 OR catalogue_source IS NOT NULL)
                 ORDER BY added_at
-            """)
+            """, (1 if catalogue_only else 0,))
             # IMPORTANT: Fetch all rows before iterating - SQLite cursor gets
             # invalidated if we execute other queries while iterating
             queued_rows = cursor.fetchall()
@@ -794,10 +894,10 @@ class QueueOperations:
             if row['status'] != 'failed':
                 return False, f"Download is not failed (status: {row['status']})"
 
-            # Reset to pending_scrape
+            # Reset to pending_scrape (catalogue items have nothing to scrape: straight back to queued)
             conn.execute("""
                 UPDATE downloads
-                SET status = 'pending_scrape',
+                SET status = CASE WHEN catalogue_source IS NOT NULL THEN 'queued' ELSE 'pending_scrape' END,
                     error = NULL,
                     completed_at = NULL,
                     success = NULL,

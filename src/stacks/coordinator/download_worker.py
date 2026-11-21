@@ -147,6 +147,12 @@ def download_worker_process(
     _last_progress_write = [0.0]
     _current_md5 = [None]  # updated when a job is claimed
 
+    # CATALOGUE_ONLY: only public-domain catalogue items are claimed, and Anna's Archive's downloader is never built
+    from stacks.catalogue import catalogue_only as _catalogue_only
+    catalogue_only = _catalogue_only(config)
+    if catalogue_only:
+        worker_logger.info("Catalogue-only mode: this worker only downloads from public-domain catalogues")
+
     # Progress callback that checks for cancellation and sends periodic heartbeats
     def progress_callback(progress):
         nonlocal cancel_flag
@@ -195,7 +201,7 @@ def download_worker_process(
                 continue
 
             # Try to claim a job
-            job = queue_ops.claim_download_job(worker_id)
+            job = queue_ops.claim_download_job(worker_id, catalogue_only=catalogue_only)
 
             if not job:
                 # No jobs available, wait and retry
@@ -220,6 +226,28 @@ def download_worker_process(
                 all_mirrors = []
 
             worker_logger.info(f"Claimed job: {md5} ({len(all_mirrors)} mirrors available)")
+
+            # Public-domain catalogue items go to the catalogue downloader (stacks.catalogue), never to the mirrors
+            if job.get('catalogue_source') or catalogue_only:
+                cancel_flag = None
+                _last_command_check[0] = 0.0
+                _last_progress_write[0] = 0.0
+                if not job.get('catalogue_source'):      # (claim_download_job doesn't hand these out in this mode)
+                    queue_ops.complete_download(worker_id=worker_id, md5=md5, success=False,
+                                                error="this server only downloads from public-domain catalogues")
+                    _current_md5[0] = None
+                    continue
+                from stacks.catalogue.worker import run_catalogue_job
+                outcome = run_catalogue_job(job, config, queue_ops, worker_id, progress_callback,
+                                            lambda: cancel_flag, stop_event, worker_logger)
+                _current_md5[0] = None
+                cancel_flag = None
+                if outcome == "stop":
+                    break
+                delay = config.get('downloads', 'delay', default=2)
+                if delay > 0 and not stop_event.is_set():
+                    stop_event.wait(timeout=delay)
+                continue
 
             # Initialize downloader lazily
             if downloader is None:

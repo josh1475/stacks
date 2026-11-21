@@ -60,6 +60,11 @@ def create_app(config_path: str = None, debug_mode: bool = False):
     # ---- Store mode flag ----
     app.stacks_multiprocess = not debug_mode
 
+    from stacks.catalogue import catalogue_only
+    if debug_mode and catalogue_only(config):
+        # The legacy single-process worker only knows Anna's Archive; catalogue mode needs the normal mode
+        raise RuntimeError("CATALOGUE_ONLY needs Stacks' normal (multi-process) mode, not debug mode")
+
     if debug_mode:
         # ---- Debug mode: use old single-process architecture ----
         logger.info("Debug mode: Using single-process architecture with worker thread")

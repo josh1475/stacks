@@ -40,6 +40,14 @@ class ProcessManager:
         self.stop_event = Event()
         self.processes: List[Tuple[str, Process]] = []
         self.logger = logging.getLogger('process_manager')
+        # CATALOGUE_ONLY: no scraper (it only talks to Anna's Archive) and no domain refreshes
+        try:
+            from stacks.config.config import Config
+            from stacks.catalogue import catalogue_only
+            self.catalogue_only = catalogue_only(Config(config_path))
+        except Exception as e:
+            self.logger.error(f"Couldn't read the config for catalogue mode: {e}")
+            self.catalogue_only = False
 
     def start_all(self) -> None:
         """
@@ -61,7 +69,7 @@ class ProcessManager:
         self.logger.info("Starting coordinator process")
         p = Process(
             target=coordinator_process,
-            args=(self.stop_event,),
+            args=(self.stop_event, self.catalogue_only),
             name="coordinator"
         )
         p.start()
@@ -79,9 +87,12 @@ class ProcessManager:
             p.start()
             self.processes.append((worker_id, p))
 
-        # Start scraper process(es)
-        self.logger.info(f"Starting {SCRAPER_WORKERS} scraper worker(s)")
-        for i in range(SCRAPER_WORKERS):
+        # Start scraper process(es) (not in catalogue-only mode: catalogue items have nothing to scrape)
+        if self.catalogue_only:
+            self.logger.info("Catalogue-only mode: no scraper")
+        else:
+            self.logger.info(f"Starting {SCRAPER_WORKERS} scraper worker(s)")
+        for i in range(0 if self.catalogue_only else SCRAPER_WORKERS):
             worker_id = f"scraper-{i + 1}" if SCRAPER_WORKERS > 1 else "scraper-1"
             p = Process(
                 target=scraper_process,
@@ -167,7 +178,7 @@ class ProcessManager:
                 if name == 'coordinator':
                     p = Process(
                         target=coordinator_process,
-                        args=(self.stop_event,),
+                        args=(self.stop_event, self.catalogue_only),
                         name="coordinator"
                     )
                 elif name.startswith('download-'):

@@ -1,0 +1,22 @@
+// Public-domain catalogues: the search panel on the Downloads tab
+.catalogue-card {
+  margin-bottom: 20px;
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+
+    input {
+      flex: 1;
+    }
+  }
+
+  .catalogue-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+}

@@ -32,6 +32,21 @@ Stacks is a containerized download queue manager designed specifically for Anna'
 - **Resume Support** - Automatically resume interrupted downloads
 - **Download History** - Track successful and failed downloads with retry capability
 
+## Catalogue mode
+
+This fork can also search and download from three **public-domain catalogues**: Project Gutenberg (EPUB), Standard
+Ebooks (EPUB, from its public New Releases feed) and LibriVox (audiobooks, MP3 chapters). Items are queued by
+`(source, id)` and show up in the same queue, history and status as everything else. Use the *Public-domain
+catalogues* panel on the Downloads tab, the catalogue userscript (`web/tamper/stacks_catalogue.user.js`, which adds a
+Download button to book pages on those three sites), or the `/api/catalogue/*` endpoints. Settings → Catalogues
+switches each one on or off.
+
+Set `CATALOGUE_ONLY=true` to make a server that **only** downloads from those catalogues: md5 downloads are refused
+(403), and the Anna's Archive downloader, scraper and mirror refresh never run. It defaults to `false`.
+
+Stacks only talks to the catalogues' own hosts, over HTTPS, with an honest User-Agent, paced per host and backing off
+when asked. Details, the limits each catalogue documents, and the API: [docs/catalogue.md](./docs/catalogue.md).
+
 ## Quick Start
 
 ### Docker Installation
@@ -238,6 +253,7 @@ Stacks implements multiple layers of security:
 ## Further reading
 
 - [API Manual](./docs/api.md)
+- [Public-domain catalogues and Catalogue mode](./docs/catalogue.md)
 - [Build your own image](./docs/development.md)
 - [Configuration](./docs/configuration.md)
 - [Tampermonkey installation](./docs/tampermonkey.md)

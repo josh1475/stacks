@@ -128,9 +128,19 @@ def _get_download_links_single_domain(d, md5, domain):
 
     try:
         response = d.session.get(url, timeout=30)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # Some Anna's Archive domains sit behind Cloudflare, which answers a plain request with 403/503 while
+        # letting a real browser through; the solver gets the page and leaves its cookies in the session.
+        # (Found 2026-11-21: every AA domain 403'd the scraper before FlareSolverr was ever asked.)
+        if response.status_code in (403, 503) and getattr(d, 'flaresolverr_url', None):
+            d.logger.warning(f"{domain} answered {response.status_code}; solving with FlareSolverr")
+            solved, _, solved_html = d.solve_with_flaresolverr(url)
+            if not (solved and solved_html):
+                response.raise_for_status()          # nothing better to do: rotate to the next domain
+            else:
+                soup = BeautifulSoup(solved_html, 'html.parser')
+        else:
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
 
         # Helper function to extract filename from Filepath metadata
         def extract_from_filepath():
@@ -317,15 +327,67 @@ def _get_download_links_single_domain(d, md5, domain):
         raise  # Re-raise to allow domain rotation
 
 
+def _get_libgen_links(d, md5):
+    """Ask Library Genesis (libgen.li) for a file link, for when Anna's Archive
+    yields nothing. (Josh, 2026-11-21: the Download button must work, "strive to
+    improve it" — every AA domain serves the server a DDoS-Guard interstitial,
+    while libgen.li answers plain HTTP with a keyed get.php link that streams the
+    file straight off its CDN.)"""
+    response = d.session.get(f"http://libgen.li/ads.php?md5={md5}", timeout=30)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # The record page mints exactly one such anchor per visit; the key rides along.
+    get_anchor = soup.find('a', href=re.compile(r'get\.php\?md5=', re.IGNORECASE))
+    if not get_anchor:
+        d.logger.debug("Library Genesis has no get.php link for this md5")
+        return None
+
+    # A title for the file if the CDN's Content-Disposition doesn't name one:
+    # the record table pairs a "Title:" label cell with its value cell.
+    filename = None
+    label = soup.find(lambda t: t.name in ('td', 'th') and t.get_text(strip=True) == 'Title:')
+    if label is not None:
+        cell = label.find_next_sibling(['td', 'th'])
+        if cell is not None:
+            filename = cell.get_text(' ', strip=True) or None
+    if not filename:
+        match = re.search(r'Title:\s*(.+?)\s*(?:Series:|Author\(s\):|$)', soup.get_text(' '))
+        if match:
+            filename = match.group(1).strip()
+
+    return filename, {
+        'url': urljoin('http://libgen.li/', get_anchor['href']),
+        'domain': 'libgen.li',
+        'text': 'Library Genesis',
+        'type': 'libgen_get',
+    }
+
+
 def get_download_links(d, md5):
     """
-    Get download links from Anna's Archive with automatic domain rotation.
+    Get download links, Library Genesis first, Anna's Archive (with automatic
+    domain rotation) as the fallback.
 
-    This function will try different Anna's Archive domains until one succeeds.
-    When a domain works, it's saved for future use.
+    libgen.li answers plain HTTP in under a second, while an Anna's Archive
+    attempt costs a FlareSolverr round-trip and currently ends in a page with
+    no downloads panel (probed 2026-11-21: 14 of 17 scrape seconds went to
+    solving a guard page that yielded nothing).
     """
     try:
-        return try_domains_until_success(_get_download_links_single_domain, d, md5)
+        fallback = _get_libgen_links(d, md5)
+    except Exception as e:
+        d.logger.error(f"Library Genesis failed: {e}")
+        fallback = None
+    if fallback:
+        libgen_filename, link = fallback
+        d.logger.info("Using Library Genesis for the download links")
+        return libgen_filename, [link]
+
+    try:
+        filename, links = try_domains_until_success(_get_download_links_single_domain, d, md5)
+        if links:
+            return filename, links
     except Exception as e:
         d.logger.error(f"Failed to fetch download links from all domains: {e}")
-        return "Unknown", []
+    return "Unknown", []

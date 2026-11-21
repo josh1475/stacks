@@ -101,6 +101,26 @@ proxy:
     default: null
     max_length: 128
 
+# Public-domain catalogues (stacks.catalogue): Project Gutenberg, Standard Ebooks, LibriVox
+catalogue:
+  only:                      # true: refuse md5 (Anna's Archive) downloads; also CATALOGUE_ONLY in the environment
+    types: [BOOL]
+    default: false
+  gutenberg:
+    types: [BOOL]
+    default: true
+  standardebooks:
+    types: [BOOL]
+    default: true
+  librivox:
+    types: [BOOL]
+    default: true
+  max_size_mb:               # the most one catalogue item may download (an audiobook's chapters together)
+    types: [INTEGER]
+    default: 4096
+    min: 10
+    max: 65536
+
 queue:
   max_history:
     types: [INTEGER]

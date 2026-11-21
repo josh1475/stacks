@@ -53,10 +53,28 @@ environment:
   - SOLVERR_URL=flaresolverr:8191 # Embedds the URL and port for FlareSolverr on first run
   - RESET_ADMIN=true # Force password reset
   - FLASK_DEBUG=true # Sets Flask into Debug mode on startup
+  - CATALOGUE_ONLY=true # Only download from public-domain catalogues; refuse md5 downloads (default false)
+  - ADMIN_API_KEY=... # Optional: the admin API key, kept out of config.yaml (32 letters, digits, - or _)
+  - DOWNLOADER_API_KEY=... # Optional: the Downloader API key, kept out of config.yaml
 
 ```
 
 **Note:** `USERNAME` and `PASSWORD` variables only seed the initial configuration. Once the config file exists, environment variables are ignored unless the password hash is invalid or `RESET_ADMIN=true` is set. In other words, once you have persistent volumes and a valid config it is safe to remove them from the compose file.
+
+`CATALOGUE_ONLY`, `ADMIN_API_KEY` and `DOWNLOADER_API_KEY` are different: they are read on every request and win
+over `config.yaml` for as long as they are set (they are never written to it). See
+[Catalogue mode](./catalogue.md).
+
+The `catalogue` section of `config.yaml`:
+
+```yaml
+catalogue:
+  only: false          # true: catalogue mode (or CATALOGUE_ONLY in the environment)
+  gutenberg: true      # each catalogue on or off
+  standardebooks: true
+  librivox: true
+  max_size_mb: 4096    # the most one item may download
+```
 
 ## Network Access
 
