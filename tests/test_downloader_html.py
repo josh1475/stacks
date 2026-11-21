@@ -1,6 +1,6 @@
 """Anna's Archive page scraping: a Cloudflare 403 is solved with FlareSolverr, not fatal.
-Plus the Library Genesis fallback: when every AA domain comes back empty, the
-download links come from libgen.li's keyed get.php instead."""
+Plus Library Genesis first: the links come from libgen.li's keyed get.php in under a
+second, and Anna's Archive (FlareSolverr, domain rotation) is only the fallback."""
 
 import logging
 
@@ -101,13 +101,16 @@ def test_a_normal_page_still_parses_alone():
     assert len(links) == 2
 
 
-def test_when_every_aa_domain_yields_nothing_libgen_steps_in(monkeypatch):
+def test_libgen_is_asked_first_and_annas_archive_never_hears_of_it(monkeypatch):
+    # probed 2026-11-21: an AA attempt costs a FlareSolverr round-trip and ends in a panel-less
+    # guard page, so libgen's sub-second plain-HTTP answer goes first
     d = make_d(Session(Resp(200, ADS_PAGE % ("b" * 32))))
     monkeypatch.setattr(
         html_module, "try_domains_until_success",
-        lambda fn, d_, md5: (_ for _ in ()).throw(RuntimeError("all domains failed")),
+        lambda fn, d_, md5: (_ for _ in ()).throw(AssertionError("Anna's Archive was asked first")),
     )
     filename, links = get_download_links(d, "b" * 32)
+    assert d.session.called == [f"http://libgen.li/ads.php?md5={'b' * 32}"]
     assert len(links) == 1
     link = links[0]
     assert link["type"] == "libgen_get"
@@ -116,7 +119,18 @@ def test_when_every_aa_domain_yields_nothing_libgen_steps_in(monkeypatch):
     assert filename == "Workbook for Atomic Habits"          # named from the record page
 
 
-def test_when_libgen_also_has_nothing_the_answer_is_honest(monkeypatch):
+def test_when_libgen_has_no_link_annas_archive_is_asked(monkeypatch):
+    d = make_d(Session(Resp(200, ADS_PAGE_WITHOUT_LINK)))
+    aa_links = [{"type": "slow_download", "url": "https://partner.example/slow_download/y/0/0"}]
+    monkeypatch.setattr(
+        html_module, "try_domains_until_success",
+        lambda fn, d_, md5: ("A Panel Title", aa_links),
+    )
+    filename, links = get_download_links(d, "c" * 32)
+    assert filename == "A Panel Title" and links == aa_links
+
+
+def test_when_neither_mirror_yields_anything_the_answer_is_honest(monkeypatch):
     d = make_d(Session(Resp(200, ADS_PAGE_WITHOUT_LINK)))
     monkeypatch.setattr(
         html_module, "try_domains_until_success",

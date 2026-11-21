@@ -366,31 +366,28 @@ def _get_libgen_links(d, md5):
 
 def get_download_links(d, md5):
     """
-    Get download links from Anna's Archive with automatic domain rotation.
+    Get download links, Library Genesis first, Anna's Archive (with automatic
+    domain rotation) as the fallback.
 
-    This function will try different Anna's Archive domains until one succeeds.
-    When a domain works, it's saved for future use. When every domain comes
-    back empty (dead page, guard interstitial, no panel), Library Genesis is
-    asked instead before giving up.
+    libgen.li answers plain HTTP in under a second, while an Anna's Archive
+    attempt costs a FlareSolverr round-trip and currently ends in a page with
+    no downloads panel (probed 2026-11-21: 14 of 17 scrape seconds went to
+    solving a guard page that yielded nothing).
     """
-    filename, links = "Unknown", []
-    try:
-        filename, links = try_domains_until_success(_get_download_links_single_domain, d, md5)
-    except Exception as e:
-        d.logger.error(f"Failed to fetch download links from all domains: {e}")
-
-    if links:
-        return filename, links
-
-    # A missing panel counts as "success" upstream, so an exhausted Anna's
-    # Archive reaches here without an exception. (Josh, 2026-11-21.)
     try:
         fallback = _get_libgen_links(d, md5)
     except Exception as e:
-        d.logger.error(f"Library Genesis fallback failed: {e}")
-        return "Unknown", []
-    if not fallback:
-        return "Unknown", []
-    libgen_filename, link = fallback
-    d.logger.info("Using Library Genesis for the download links")
-    return (filename if filename != "Unknown" else libgen_filename), [link]
+        d.logger.error(f"Library Genesis failed: {e}")
+        fallback = None
+    if fallback:
+        libgen_filename, link = fallback
+        d.logger.info("Using Library Genesis for the download links")
+        return libgen_filename, [link]
+
+    try:
+        filename, links = try_domains_until_success(_get_download_links_single_domain, d, md5)
+        if links:
+            return filename, links
+    except Exception as e:
+        d.logger.error(f"Failed to fetch download links from all domains: {e}")
+    return "Unknown", []

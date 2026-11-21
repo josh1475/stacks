@@ -74,13 +74,15 @@ def download_direct(d, download_url, title=None, total_size=None, supports_resum
                     headers['Range'] = f'bytes={downloaded}-'
                     d.logger.info(f"Resuming from byte {downloaded}")
 
-                response = d.session.get(download_url, headers=headers, stream=True, timeout=30)
+                # (timeout=(connect, read): booksdl CDNs stall tens of seconds mid-stream while staying
+                # alive — a 30 s read ceiling only buys a needless reconnect + resume, seen 2026-11-21)
+                response = d.session.get(download_url, headers=headers, stream=True, timeout=(10, 75))
 
                 if downloaded > 0 and response.status_code not in [200, 206]:
                     d.logger.warning(f"Resume not supported (status {response.status_code}), starting fresh")
                     downloaded = 0
                     temp_path.unlink(missing_ok=True)
-                    response = d.session.get(download_url, stream=True, timeout=30)
+                    response = d.session.get(download_url, stream=True, timeout=(10, 75))
 
                 # Get total size
                 if total_size is None:
