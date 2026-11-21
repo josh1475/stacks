@@ -9,6 +9,7 @@ import pytest
 import stacks.catalogue as catalogue
 from conftest import ADMIN_KEY, DOWNLOADER_KEY
 from stacks.catalogue.base import CatalogueItem, FileFormat, NotFound, catalogue_key
+from stacks.constants import DOWNLOAD_PATH
 
 ADMIN = {"X-API-Key": ADMIN_KEY}
 DL = {"X-API-Key": DOWNLOADER_KEY}
@@ -68,6 +69,33 @@ def test_md5_queue_still_works_by_default(app, fresh_db):
     r = app.test_client().post("/api/queue/add", json={"md5": "d6e1dc51a50726f00ec438af21952a45"}, headers=DL)
     assert r.status_code == 200 and r.get_json()["success"]
     assert rows(fresh_db)[0]["status"] == "pending_scrape"
+
+
+def test_a_manual_md5_download_shows_up_in_the_downloads_list(app, fresh_db):
+    # (Josh, 2026-11-21: the hub hands Stacks a hash through /api/queue/add; its
+    # completed row must appear in /api/catalogue/downloads or the book the
+    # scraper fetched never reaches the library.)
+    c = app.test_client()
+    r = c.post("/api/queue/add", json={"md5": "d6e1dc51a50726f00ec438af21952a45", "source": "manual"}, headers=DL)
+    assert r.status_code == 200
+
+    import stacks.coordinator.queue_ops as qo
+    # walk the row the way a worker would: scrape done, job claimed, download finished
+    conn = sqlite3.connect(fresh_db)
+    conn.execute("UPDATE downloads SET status = 'queued', assigned_worker = 'worker-test' "
+                 "WHERE md5 = 'd6e1dc51a50726f00ec438af21952a45'")
+    conn.commit()
+    conn.close()
+    assert qo.get_queue_ops().complete_download("worker-test", "d6e1dc51a50726f00ec438af21952a45",
+                                                success=True, filepath=str(DOWNLOAD_PATH / "Dune.epub"))
+
+    d = c.get("/api/catalogue/downloads", headers=DL).get_json()["items"]
+    assert [i["key"] for i in d] == ["d6e1dc51a50726f00ec438af21952a45"]
+    assert d[0]["status"] == "completed" and d[0]["relpath"] == "Dune.epub"
+
+    # and the keys-filtered lookup the hub can also use finds it
+    d = c.get("/api/catalogue/downloads?keys=d6e1dc51a50726f00ec438af21952a45", headers=DL).get_json()["items"]
+    assert len(d) == 1 and d[0]["status"] == "completed"
 
 
 def test_key_test_is_refused_in_catalogue_only_mode(app, monkeypatch):

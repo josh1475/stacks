@@ -165,6 +165,10 @@ class QueueOperations:
         """
         Catalogue items in the queue and history (newest first), optionally only KEYS.
         For clients holding the Downloader key, who can't read /api/status.
+
+        Manual md5 downloads ride along (Josh, 2026-11-21: the hub hands Stacks
+        a hash through /api/queue/add and otherwise has no window on the queue —
+        without these rows a finished book never reached the library).
         """
         conn = get_connection()
         try:
@@ -173,13 +177,13 @@ class QueueOperations:
                 marks = ",".join("?" * len(keys))
                 cursor = conn.execute(f"""
                     SELECT * FROM downloads
-                    WHERE catalogue_source IS NOT NULL AND md5 IN ({marks})
+                    WHERE (catalogue_source IS NOT NULL OR source = 'manual') AND md5 IN ({marks})
                     ORDER BY added_at DESC
                 """, keys)
             else:
                 cursor = conn.execute("""
                     SELECT * FROM downloads
-                    WHERE catalogue_source IS NOT NULL
+                    WHERE catalogue_source IS NOT NULL OR source = 'manual'
                     ORDER BY COALESCE(completed_at, added_at) DESC
                     LIMIT ?
                 """, (limit,))
