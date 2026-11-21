@@ -1,10 +1,14 @@
-"""Anna's Archive page scraping: a Cloudflare 403 is solved with FlareSolverr, not fatal."""
+"""Anna's Archive page scraping: a Cloudflare 403 is solved with FlareSolverr, not fatal.
+Plus the Library Genesis fallback: when every AA domain comes back empty, the
+download links come from libgen.li's keyed get.php instead."""
 
 import logging
 
 import pytest
 
-from stacks.downloader.html import _get_download_links_single_domain
+import stacks.downloader.html as html_module
+from stacks.downloader.html import _get_download_links_single_domain, get_download_links
+from stacks.downloader.mirrors import _filename_from_disposition, download_from_mirror
 
 PANEL = """
 <div id="md5-panel-downloads">
@@ -35,9 +39,26 @@ class Session:
         self.resp = resp
         self.called = []
 
-    def get(self, url, timeout=None):
+    def get(self, url, timeout=None, **kwargs):
         self.called.append(url)
         return self.resp
+
+
+ADS_PAGE = """
+<td><b>Title:</b></td><td>Workbook for Atomic Habits</td>
+<a href="get.php?md5=%s&amp;key=KEY123">GET</a>
+"""
+
+ADS_PAGE_WITHOUT_LINK = "<td><b>Title:</b></td><td>Something</td><p>No mirrors today.</p>"
+
+
+class DispositionResp:
+    ok = True
+    headers = {'Content-Disposition': 'attachment; filename="Workbook for James Clear&_039_s '
+               'Atomic Habits{Works, Companion}(2021, James Clear){106283071} libgen.li.epub"'}
+
+    def close(self):
+        pass
 
 
 def make_d(session, solved=(True, {}, PANEL)):
@@ -78,3 +99,55 @@ def test_a_normal_page_still_parses_alone():
     d.solve_with_flaresolverr = lambda url: (_ for _ in ()).throw(AssertionError("solver not needed"))
     filename, links = _get_download_links_single_domain(d, "a" * 32, "annas-archive.gl")
     assert len(links) == 2
+
+
+def test_when_every_aa_domain_yields_nothing_libgen_steps_in(monkeypatch):
+    d = make_d(Session(Resp(200, ADS_PAGE % ("b" * 32))))
+    monkeypatch.setattr(
+        html_module, "try_domains_until_success",
+        lambda fn, d_, md5: (_ for _ in ()).throw(RuntimeError("all domains failed")),
+    )
+    filename, links = get_download_links(d, "b" * 32)
+    assert len(links) == 1
+    link = links[0]
+    assert link["type"] == "libgen_get"
+    assert link["url"] == f"http://libgen.li/get.php?md5={'b' * 32}&key=KEY123"
+    assert link["domain"] == "libgen.li"
+    assert filename == "Workbook for Atomic Habits"          # named from the record page
+
+
+def test_when_libgen_also_has_nothing_the_answer_is_honest(monkeypatch):
+    d = make_d(Session(Resp(200, ADS_PAGE_WITHOUT_LINK)))
+    monkeypatch.setattr(
+        html_module, "try_domains_until_success",
+        lambda fn, d_, md5: (_ for _ in ()).throw(RuntimeError("all domains failed")),
+    )
+    filename, links = get_download_links(d, "c" * 32)
+    assert filename == "Unknown" and links == []
+
+
+def test_a_libgen_get_stream_takes_its_name_from_the_cdn_header():
+    d = type("D", (), {})()
+    d.logger = logging.getLogger("test")
+    d.session = Session(DispositionResp())
+    used = {}
+    d.download_direct = lambda url, title=None, **kw: used.update(url=url, title=title) or "/books/out.epub"
+
+    filepath = download_from_mirror(d, "http://libgen.li/get.php?md5=" + "d" * 32 + "&key=K", "libgen_get", "d" * 32)
+
+    assert filepath == "/books/out.epub"
+    assert used["title"] == "Workbook for James Clear's Atomic Habits{Works, Companion}(2021, James Clear){106283071} libgen.li.epub"
+
+
+def test_a_missing_disposition_leaves_the_scraper_title_alone():
+    assert _filename_from_disposition("") is None
+    resp = type("R", (), {"ok": True, "headers": {}, "close": lambda self: None})()
+    d = type("D", (), {})()
+    d.logger = logging.getLogger("test")
+    d.session = Session(resp)
+    used = {}
+    d.download_direct = lambda url, title=None, **kw: used.update(title=title) or "/books/out.pdf"
+
+    download_from_mirror(d, "http://libgen.li/get.php?md5=e", "libgen_get", "e", title="A Plain Title.pdf")
+
+    assert used["title"] == "A Plain Title.pdf"

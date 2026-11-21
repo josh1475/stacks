@@ -1,9 +1,30 @@
+import re
+from urllib.parse import unquote
+
+
+def _filename_from_disposition(value):
+    """The filename a server named in its Content-Disposition header, or None.
+
+    libgen.li buries HTML entities in odd shapes (an apostrophe arrives as
+    "&_039_"); undo those too so filenames look like names again."""
+    if not value:
+        return None
+    match = re.search(r'filename\*?=(?:\"([^\"]*)\"|([^;\s]+))', value)
+    if not match:
+        return None
+    name = (match.group(1) or match.group(2)).strip()
+    name = re.sub(r"&_\s*0?\s*39\s*_", "'", name)
+    name = unquote(name)
+    return name or None
+
+
 def download_from_mirror(d, mirror_url, mirror_type, md5, title=None, resume_attempts=3, subfolder=None):
     """
     Download from any mirror with stale cookie handling.
 
     Logic:
     - slow_download: Use pre-warmed cookies with direct HTTP requests
+    - libgen_get: The link redirects to a CDN that streams the file itself
     - external_mirror: Try direct, use FlareSolverr on 403 (with cookie refresh)
 
     Args:
@@ -74,7 +95,29 @@ def download_from_mirror(d, mirror_url, mirror_type, md5, title=None, resume_att
             except Exception as e:
                 d.logger.error(f"Error accessing slow_download page: {e}")
                 return None
-        
+
+        elif mirror_type == 'libgen_get':
+            # Library Genesis' keyed get.php link redirects to its CDN, which
+            # streams the file itself and names it in Content-Disposition.
+            # (Josh, 2026-11-21: "strive to improve it" — this is the only
+            # mirror network that still answers from his server.)
+            d.logger.debug(f"Streaming from Library Genesis: {mirror_url}")
+            if hasattr(d, 'status_callback'):
+                d.status_callback("Downloading file...")
+
+            named = None
+            try:
+                # Headers only: stream=True stops before the body, so the file
+                # isn't pulled twice — download_direct fetches it for real.
+                probe = d.session.get(mirror_url, timeout=30, stream=True)
+                disposition = probe.headers.get('Content-Disposition', '') if probe.ok else ''
+                probe.close()
+                named = _filename_from_disposition(disposition)
+            except Exception as e:
+                d.logger.warning(f"Could not read Library Genesis headers: {e}")
+
+            return d.download_direct(mirror_url, title=named or title, resume_attempts=resume_attempts, md5=md5, subfolder=subfolder)
+
         else:  # external_mirror
             d.logger.debug(f"Accessing external mirror: {mirror_url}")
 
